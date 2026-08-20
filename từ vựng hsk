@@ -1,0 +1,19 @@
+[
+  { "id": "1", "word": "你好", "pinyin": "nǐ hǎo", "hanViet": "Nhĩ Hảo", "meaning": "Xin chào", "level": "HSK 1", "isVip": false },
+  { "id": "2", "word": "谢谢", "pinyin": "xièxie", "hanViet": "Tạ Tạ", "meaning": "Cảm ơn", "level": "HSK 1", "isVip": false },
+  { "id": "3", "word": "再见", "pinyin": "zài<b>ji</b>àn", "hanViet": "Tái Kiến", "meaning": "Tạm biệt", "level": "HSK 1", "isVip": false },
+  { "id": "4", "word": "朋友", "pinyin": "<b>p</b>éng you", "hanViet": "Bằng Hữu", "meaning": "Bạn bè", "level": "HSK 2", "isVip": false },
+  { "id": "5", "word": "天气", "pinyin": "<b>t</b>iān qì", "hanViet": "Thiên Khí", "meaning": "Thời tiết", "level": "HSK 2", "isVip": false },
+  { "id": "6", "word": "吃饭", "pinyin": "<b>ch</b>ī fàn", "hanViet": "Cật Phạn", "meaning": "Ăn cơm", "level": "HSK 2", "isVip": false },
+  { "id": "7", "word": "问题", "pinyin": "wèn<b>t</b>í", "hanViet": "Vấn Đề", "meaning": "Vấn đề, câu hỏi", "level": "HSK 3", "isVip": false },
+  { "id": "8", "word": "面试", "pinyin": "miàn<b>sh</b>ì", hanViet: "Diện Thí", meaning: "Phỏng vấn tuyển dụng", level: "HSK 4", isVip: true },
+  { "id": "9", "word": "顺利", "pinyin": "<b>sh</b>ùn<b>l</b>ì", hanViet: "Thuận Lợi", meaning: "Thuận buồm xuôi gió", level: "HSK 4", isVip: true },
+  { "id": "10", "word": "考虑", "pinyin": "<b>k</b>ǎolǜ", hanViet: "Khảo Lự", meaning: "Cân nhắc, suy nghĩ", level: "HSK 5", isVip: true },
+  { "id": "11", "word": "批评", "pinyin": "<b>p</b>īpíng", hanViet: "Phê Bình", meaning: "Phê bình, chỉ trích", level: "HSK 5", isVip: true },
+  { "id": "12", "word": "期待", "pinyin": "<b>q</b>īdài", hanViet: "Kỳ Đãi", meaning: "Kỳ vọng, mong đợi", level: "HSK 5", isVip: true },
+  { "id": "13", "word": "此外", "pinyin": "<b>c</b>ǐwài", hanViet: "Thử Ngoại", meaning: "Ngoài ra, bên cạnh đó", level: "HSK 5", isVip: true },
+  { "id": "14", "word": "破釜沉舟", "pinyin": "<b>p</b>ò fǔ <b>ch</b>én zhōu", hanViet: "Phá Phủ Trầm Châu", meaning: "Quyết tử không lùi bước (Thành ngữ)", level: "HSK 6", isVip: true },
+  { "id": "15", "word": "克尽职守", "pinyin": "<b>k</b>è jǐn zhí shǒu", hanViet: "Khắc Tận Chức Thủ", meaning: "Tận tụy hoàn thành nhiệm vụ", level: "HSK 7-9", isVip: true },
+  { "id": "16", "word": "统筹", "pinyin": "<b>t</b>ǒng <b>ch</b>óu", hanViet: "Thống Trù", meaning: "Lập kế hoạch tổng thể", level: "HSK 7-9", isVip: true },
+  { "id": "17", "word": "趋势", "pinyin": "<b>q</b>ū shì", hanViet: "Khu Thế", meaning: "Xu thế, xu hướng phát triển", level: "HSK 7-9", isVip: true }
+]
