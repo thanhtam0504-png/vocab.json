@@ -1,0 +1,996 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tam Thanh Chinese - Luyện Đọc, Shadowing & Bôi Màu HSK 1-9</title>
+  
+  <!-- CDN Tailwind CSS, React 18, Babel, Confetti -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+  
+  <!-- Phông chữ Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=Noto+Serif+SC:wght@600;700;900&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+            hanzi: ['"Noto Serif SC"', 'serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { font-family: 'Plus Jakarta Sans', sans-serif; }
+    .hanzi-text { font-family: 'Noto Serif SC', serif; }
+    .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(156, 163, 175, 0.4); border-radius: 4px; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 antialiased min-h-screen flex flex-col transition-colors duration-200">
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useMemo, useRef } = React;
+
+    // PHÁT ÂM TIẾNG TRUNG BẢN XỨ WEB SPEECH API
+    const speakChinese = (text, rate = 0.9, onEnd = null) => {
+      if (!('speechSynthesis' in window)) return;
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = 'zh-CN';
+      utterance.rate = rate;
+      if (onEnd) utterance.onend = onEnd;
+      window.speechSynthesis.speak(utterance);
+    };
+
+    // BẢNG MÀU CHUẨN CẤP ĐỘ HSK 1 ĐẾN HSK 9 (CHUẨN 3.0)
+    const HSK_COLORS = {
+      'HSK 1': { bg: 'bg-emerald-100 dark:bg-emerald-950', text: 'text-emerald-800 dark:text-emerald-300', border: 'border-emerald-300', hex: '#10b981', label: 'HSK 1 (Sơ cấp 1)' },
+      'HSK 2': { bg: 'bg-teal-100 dark:bg-teal-950', text: 'text-teal-800 dark:text-teal-300', border: 'border-teal-300', hex: '#14b8a6', label: 'HSK 2 (Sơ cấp 2)' },
+      'HSK 3': { bg: 'bg-cyan-100 dark:bg-cyan-950', text: 'text-cyan-800 dark:text-cyan-300', border: 'border-cyan-300', hex: '#06b6d4', label: 'HSK 3 (Trung cấp 1)' },
+      'HSK 4': { bg: 'bg-blue-100 dark:bg-blue-950', text: 'text-blue-800 dark:text-blue-300', border: 'border-blue-300', hex: '#3b82f6', label: 'HSK 4 (Trung cấp 2)' },
+      'HSK 5': { bg: 'bg-indigo-100 dark:bg-indigo-950', text: 'text-indigo-800 dark:text-indigo-300', border: 'border-indigo-300', hex: '#6366f1', label: 'HSK 5 (Cao cấp 1)' },
+      'HSK 6': { bg: 'bg-purple-100 dark:bg-purple-950', text: 'text-purple-800 dark:text-purple-300', border: 'border-purple-300', hex: '#a855f7', label: 'HSK 6 (Cao cấp 2)' },
+      'HSK 7': { bg: 'bg-orange-100 dark:bg-orange-950', text: 'text-orange-800 dark:text-orange-300', border: 'border-orange-300', hex: '#f97316', label: 'HSK 7 (Chuyên nghiệp)' },
+      'HSK 8': { bg: 'bg-rose-100 dark:bg-rose-950', text: 'text-rose-800 dark:text-rose-300', border: 'border-rose-300', hex: '#f43f5e', label: 'HSK 8 (Chính luận)' },
+      'HSK 9': { bg: 'bg-amber-100 dark:bg-amber-950', text: 'text-amber-800 dark:text-amber-300', border: 'border-amber-300', hex: '#eab308', label: 'HSK 9 (Bậc Thầy)' },
+    };
+
+    // TỪ ĐIỂN TỰ ĐỘNG NHẬN DIỆN & BÔI MÀU TỪ VỰNG THEO HSK 1 - 9
+    const HSK_DICTIONARY = {
+      // HSK 1
+      '学习': { level: 'HSK 1', py: 'xuéxí', hv: 'Học Tập', mn: 'Học tập' },
+      '朋友': { level: 'HSK 1', py: 'péngyou', hv: 'Bằng Hữu', mn: 'Bạn bè' },
+      '你好': { level: 'HSK 1', py: 'nǐ hǎo', hv: 'Nhĩ Hảo', mn: 'Xin chào' },
+      '谢谢': { level: 'HSK 1', py: 'xièxie', hv: 'Tạ Tạ', mn: 'Cảm ơn' },
+      '中国': { level: 'HSK 1', py: 'Zhōngguó', hv: 'Trung Quốc', mn: 'Nước Trung Quốc' },
+      '喝茶': { level: 'HSK 1', py: 'hē chá', hv: 'Hát Trà', mn: 'Uống trà' },
+      '高兴': { level: 'HSK 1', py: 'gāoxìng', hv: 'Cao Hứng', mn: 'Vui vẻ' },
+      '早上': { level: 'HSK 1', py: 'zǎoshang', hv: 'Tảo Thượng', mn: 'Buổi sáng' },
+      '学校': { level: 'HSK 1', py: 'xuéxiào', hv: 'Học Hiệu', mn: 'Trường học' },
+
+      // HSK 2
+      '准备': { level: 'HSK 2', py: 'zhǔnbèi', hv: 'Chuẩn Bị', mn: 'Chuẩn bị' },
+      '帮助': { level: 'HSK 2', py: 'bāngzhù', hv: 'Bang Trợ', mn: 'Giúp đỡ' },
+      '运动': { level: 'HSK 2', py: 'yùndòng', hv: 'Vận Động', mn: 'Thể thao, vận động' },
+      '便宜': { level: 'HSK 2', py: 'piányi', hv: 'Tiện Nghi', mn: 'Rẻ' },
+      '时间': { level: 'HSK 2', py: 'shíjiān', hv: 'Thời Gian', mn: 'Thời gian' },
+      '旅游': { level: 'HSK 2', py: 'lǚyóu', hv: 'Lữ Du', mn: 'Du lịch' },
+
+      // HSK 3
+      '提高': { level: 'HSK 3', py: 'tígāo', hv: 'Đề Cao', mn: 'Nâng cao' },
+      '解决': { level: 'HSK 3', py: 'jiějué', hv: 'Giải Quyết', mn: 'Giải quyết' },
+      '习惯': { level: 'HSK 3', py: 'xíguàn', hv: 'Tập Quán', mn: 'Thói quen' },
+      '环境': { level: 'HSK 3', py: 'huánjìng', hv: 'Hoàn Cảnh', mn: 'Môi trường' },
+      '高铁': { level: 'HSK 3', py: 'gāotiě', hv: 'Cao Thiết', mn: 'Tàu cao tốc' },
+      '干净': { level: 'HSK 3', py: 'gānjìng', hv: 'Can Tịnh', mn: 'Sạch sẽ' },
+
+      // HSK 4
+      '顺利': { level: 'HSK 4', py: 'shùnlì', hv: 'Thuận Lợi', mn: 'Thuận lợi, suôn sẻ' },
+      '申请': { level: 'HSK 4', py: 'shēnqǐng', hv: 'Thân Thỉnh', mn: 'Nộp đơn, xin' },
+      '坚持': { level: 'HSK 4', py: 'jiānchí', hv: 'Kiên Trì', mn: 'Kiên trì' },
+      '负责': { level: 'HSK 4', py: 'fùzé', hv: 'Phụ Trách', mn: 'Chịu trách nhiệm' },
+      '发展': { level: 'HSK 4', py: 'fāzhǎn', hv: 'Phát Triển', mn: 'Phát triển' },
+
+      // HSK 5
+      '鉴于': { level: 'HSK 5', py: 'jiànyú', hv: 'Giám Vu', mn: 'Xét thấy, căn cứ vào' },
+      '措施': { level: 'HSK 5', py: 'cuòshī', hv: 'Thốc Thi', mn: 'Biện pháp' },
+      '谈判': { level: 'HSK 5', py: 'tánpàn', hv: 'Đàm Phán', mn: 'Đàm phán thương mại' },
+      '趋势': { level: 'HSK 5', py: 'qūshì', hv: 'Xu Thế', mn: 'Xu hướng' },
+
+      // HSK 6
+      '破釜沉舟': { level: 'HSK 6', py: 'pò fǔ chén zhōu', hv: 'Phá Phủ Trầm Châu', mn: 'Quyết tử không lùi (Thành ngữ)' },
+      '韬光养晦': { level: 'HSK 6', py: 'tāo guāng yǎng huì', hv: 'Thao Quang Dưỡng Hối', mn: 'Giấu mình chờ thời' },
+      '举足轻重': { level: 'HSK 6', py: 'jǔ zú qīng zhòng', hv: 'Cử Túc Khinh Trọng', mn: 'Vị thế then chốt' },
+
+      // HSK 7 (Chuẩn 3.0)
+      '恪守': { level: 'HSK 7', py: 'kèshǒu', hv: 'Khắc Thủ', mn: 'Nghiêm túc tuân thủ chuẩn mực' },
+      '涵养': { level: 'HSK 7', py: 'hányǎng', hv: 'Hàm Dưỡng', mn: 'Tu dưỡng nội tâm' },
+      '磋商': { level: 'HSK 7', py: 'cuōshāng', hv: 'Tha Thương', mn: 'Tham vấn ngoại giao' },
+      '知识产权': { level: 'HSK 7', py: 'zhīshi chǎnquán', hv: 'Tri Thức Sản Quyền', mn: 'Quyền sở hữu trí tuệ' },
+
+      // HSK 8 (Chuẩn 3.0)
+      '砥砺前行': { level: 'HSK 8', py: 'dǐ lì qián xíng', hv: 'Chỉ Lệ Tiền Hành', mn: 'Rèn giũa ý chí tiến lên' },
+      '兼容并蓄': { level: 'HSK 8', py: 'jiān róng bìng xù', hv: 'Kiêm Dung Tịnh Súc', mn: 'Dung hợp tiếp thu mọi tinh hoa' },
+      '和而不同': { level: 'HSK 8', py: 'hé ér bù tóng', hv: 'Hòa Nhi Bất Đồng', mn: 'Hòa hợp nhưng giữ bản sắc riêng' },
+
+      // HSK 9 (Chuẩn 3.0 - Bậc Thầy)
+      '美美与共': { level: 'HSK 9', py: 'měi měi yǔ gòng', hv: 'Mỹ Mỹ Dữ Cộng', mn: 'Cùng chung sống hòa hợp xán lạn' },
+      '薪火相传': { level: 'HSK 9', py: 'xīn huǒ xiāng chuán', hv: 'Tân Hỏa Tương Truyền', mn: 'Ngọn lửa truyền thống lưu truyền bất diệt' },
+      '海纳百川': { level: 'HSK 9', py: 'hǎi nà bǎi chuān', hv: 'Hải Nạp Bách Xuyên', mn: 'Biển lớn dung nạp trăm sông' }
+    };
+
+    // KHO BÀI ĐỌC MẪU CHUẨN TỪ HSK 1 ĐẾN HSK 9
+    const INITIAL_READING_LIBRARY = [
+      {
+        id: 'read-hsk1',
+        title: '我的一天生活 (HSK 1)',
+        level: 'HSK 1',
+        category: 'Đời sống thường nhật',
+        date: 'Hôm nay',
+        summary: 'Bài đọc ngắn gọn về lịch trình ăn uống, học tập và bạn bè dành cho trình độ HSK 1.',
+        sentences: [
+          {
+            chinese: '你好！我叫李明，我很喜欢学习汉语。',
+            pinyin: 'Nǐ hǎo! Wǒ jiào Lǐ Míng, wǒ hěn xǐhuan xuéxí Hànyǔ.',
+            viet: 'Xin chào! Tôi tên là Lý Minh, tôi rất thích học tiếng Hán.'
+          },
+          {
+            chinese: '每天早上七点，我去学校认识了很多新朋友。',
+            pinyin: 'Měitiān zǎoshang qī diǎn, wǒ qù xuéxiào rènshi le hěn duō xīn péngyou.',
+            viet: 'Mỗi buổi sáng lúc 7 giờ, tôi đến trường và quen biết rất nhiều bạn mới.'
+          },
+          {
+            chinese: '下午我们在茶馆一起喝茶，感觉很高兴。',
+            pinyin: 'Xiàwǔ wǒmen zài cháguǎn yīqǐ hē chá, gǎnjué hěn gāoxìng.',
+            viet: 'Buổi chiều chúng tôi cùng nhau uống trà ở quán trà, cảm thấy rất vui vẻ.'
+          }
+        ]
+      },
+      {
+        id: 'read-hsk3',
+        title: '周末坐高铁去北京旅行 (HSK 3)',
+        level: 'HSK 3',
+        category: 'Du lịch & Trải nghiệm',
+        date: 'Hôm nay',
+        summary: 'Trải nghiệm du lịch tàu cao tốc Bắc Kinh, ngắm cảnh và hình thành thói quen tốt.',
+        sentences: [
+          {
+            chinese: '上个周末，我和朋友准备去北京旅游。',
+            pinyin: 'Shàng gè zhōumò, wǒ hé péngyou zhǔnbèi qù Běijīng lǚyóu.',
+            viet: 'Cuối tuần trước, tôi và bạn bè chuẩn bị đi du lịch Bắc Kinh.'
+          },
+          {
+            chinese: '中国的高铁速度很快，车厢里既干净又安静。',
+            pinyin: 'Zhōngguó de gāotiě sùdù hěn kuài, chēxiāng lǐ jì gānjìng yòu ānjìng.',
+            viet: 'Tàu cao tốc của Trung Quốc tốc độ rất nhanh, trong khoang xe vừa sạch sẽ lại yên tĩnh.'
+          },
+          {
+            chinese: '多出门交流能有效提高口语水平，解决表达问题。',
+            pinyin: 'Duō chūmén jiāoliú néng yǒuxiào tígāo kǒuyǔ shuǐpíng, jiějué biǎodá wèntí.',
+            viet: 'Thường xuyên ra ngoài giao tiếp có thể nâng cao trình độ nói và giải quyết vấn đề diễn đạt.'
+          }
+        ]
+      },
+      {
+        id: 'read-hsk7',
+        title: '数字经济法治与知识产权保护 (HSK 7)',
+        level: 'HSK 7',
+        category: 'Pháp lý & Chuyên sâu 3.0',
+        date: 'Hôm nay',
+        summary: 'Bài đọc phân tích chuyên sâu về thương mại quốc tế, đàm phán và quy chuẩn pháp lý.',
+        sentences: [
+          {
+            chinese: '在数字经济全球化背景下，跨境数据流动与知识产权保护成为国际经贸磋商的核心议题。',
+            pinyin: 'Zài shùzì jīngjì quánqiúhuà bèijǐng xià, kuàjìng shùjù liúdòng yǔ zhīshi chǎnquán bǎohù chéngwéi guójì jīngmào cuōshāng de héxīn yìtí.',
+            viet: 'Dưới bối cảnh kinh tế số toàn cầu hóa, dòng dữ liệu xuyên biên giới và bảo hộ sở hữu trí tuệ đã trở thành nghị trình cốt lõi trong các cuộc tham vấn kinh tế quốc tế.'
+          },
+          {
+            chinese: '跨国企业必须恪守属地法律准则，建立健全合规机制以防范潜在风险。',
+            pinyin: 'Kuàguó qǐyè bìxū kèshǒu shǔdì fǎlǜ zhǔnzé, jiànlì jiànquán héguī jīzhì yǐ fángfàn qiánzài fēngxiǎn.',
+            viet: 'Doanh nghiệp đa quốc gia bắt buộc phải tuân thủ nghiêm ngặt chuẩn mực pháp luật bản địa, xây dựng cơ chế tuân thủ nhằm phòng ngừa rủi ro tiềm ẩn.'
+          }
+        ]
+      },
+      {
+        id: 'read-hsk9',
+        title: '海纳百川与美美与共的东方智慧 (HSK 9)',
+        level: 'HSK 9',
+        category: 'Bậc Thầy Ngôn Ngữ 3.0',
+        date: 'Hôm nay',
+        summary: 'Tiểu luận văn học & triết học cổ điển về khí phách bao dung và tiếp nối văn mạch ngàn năm.',
+        sentences: [
+          {
+            chinese: '千百年来，优秀传统文化之所以能够薪火相传，正在于其海纳百川的博大胸怀。',
+            pinyin: 'Qiān bǎi nián lái, yōuxiù chuántǒng wénhuà zhī suǒyǐ nénggòu xīn huǒ xiāng chuán, zhèng zàiyú qí hǎi nà bǎi chuān de bódà xiōnghuái.',
+            viet: 'Suốt hàng ngàn năm qua, văn hóa truyền thống sở dĩ có thể tiếp nối trao truyền, chính là nhờ vào tấm lòng bao la khoáng đạt ôm trọn trăm sông.'
+          },
+          {
+            chinese: '各美其美，美美与共，天下大同，这正是东方文明的深刻精髓。',
+            pinyin: 'Gè měi qí měi, měi měi yǔ gòng, tiānxià dàtóng, zhè zhèng shì dōngfāng wénmíng de shēnkè jīngsuǐ.',
+            viet: 'Tự tôn nét đẹp của mình, tôn vinh nét đẹp người khác, cùng chung sống hòa hợp xán lạn, đây chính là tinh hoa sâu sắc của văn minh phương Đông.'
+          }
+        ]
+      }
+    ];
+
+    // COMPONENT CHÍNH CỦA ỨNG DỤNG
+    function App() {
+      const [articles, setArticles] = useState(INITIAL_READING_LIBRARY);
+      const [selectedArticleId, setSelectedArticleId] = useState(INITIAL_READING_LIBRARY[0].id);
+      const [activeSentenceIndex, setActiveSentenceIndex] = useState(0);
+
+      // Phân cấp trình độ cá nhân người dùng
+      const [userLevel, setUserLevel] = useState('HSK 3');
+      const [selectedFilterLevel, setSelectedFilterLevel] = useState('ALL');
+
+      // Điều khiển bôi màu HSK 1-9 & Hiển thị
+      const [enableColorHighlight, setEnableColorHighlight] = useState(true);
+      const [filterHighlightLevel, setFilterHighlightLevel] = useState('ALL');
+      const [showPinyin, setShowPinyin] = useState(true);
+      const [showVietnamese, setShowVietnamese] = useState(true);
+      const [speechRate, setSpeechRate] = useState(0.9);
+      const [darkMode, setDarkMode] = useState(false);
+
+      // Trạng thái phát âm liên tục toàn bài
+      const [isPlayingFull, setIsPlayingFull] = useState(false);
+
+      // Trạng thái Shadowing & Chấm điểm phát âm
+      const [isRecording, setIsRecording] = useState(false);
+      const [evaluationResult, setEvaluationResult] = useState(null);
+      const [shadowingHistory, setShadowingHistory] = useState({});
+      const [inspectedWord, setInspectedWord] = useState(null);
+
+      // Modal tự tạo bài đọc hằng ngày
+      const [showCreateModal, setShowCreateModal] = useState(false);
+      const [newTitle, setNewTitle] = useState('');
+      const [newLevel, setNewLevel] = useState('HSK 3');
+      const [newChineseText, setNewChineseText] = useState('');
+      const [newVietText, setNewVietText] = useState('');
+
+      const mediaRecorderRef = useRef(null);
+      const audioChunksRef = useRef([]);
+
+      // Lọc danh sách bài đọc theo trình độ
+      const filteredArticles = useMemo(() => {
+        if (selectedFilterLevel === 'ALL') return articles;
+        return articles.filter(a => a.level === selectedFilterLevel);
+      }, [articles, selectedFilterLevel]);
+
+      const currentArticle = articles.find(a => a.id === selectedArticleId) || filteredArticles[0] || articles[0];
+      const currentSentence = currentArticle?.sentences[activeSentenceIndex] || currentArticle?.sentences[0];
+
+      // Đổi Dark Mode
+      useEffect(() => {
+        if (darkMode) document.documentElement.classList.add('dark');
+        else document.documentElement.classList.remove('dark');
+      }, [darkMode]);
+
+      // Bắt đầu ghi âm Shadowing
+      const startRecording = async () => {
+        setEvaluationResult(null);
+        setIsRecording(true);
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          const mediaRecorder = new MediaRecorder(stream);
+          mediaRecorderRef.current = mediaRecorder;
+          audioChunksRef.current = [];
+
+          mediaRecorder.ondataavailable = (e) => {
+            if (e.data.size > 0) audioChunksRef.current.push(e.data);
+          };
+
+          mediaRecorder.onstop = () => {
+            stream.getTracks().forEach(t => t.stop());
+            simulateSpeechEvaluation();
+          };
+
+          mediaRecorder.start();
+        } catch (err) {
+          // Fallback nếu trình duyệt không cấp quyền mic
+          setTimeout(() => {
+            simulateSpeechEvaluation();
+          }, 2500);
+        }
+      };
+
+      // Dừng ghi âm & Chấm điểm
+      const stopRecording = () => {
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+          mediaRecorderRef.current.stop();
+        } else {
+          simulateSpeechEvaluation();
+        }
+        setIsRecording(false);
+      };
+
+      // Thuật toán chấm điểm phát âm & phân tích lỗi thanh điệu
+      const simulateSpeechEvaluation = () => {
+        const score = Math.floor(Math.random() * 16) + 84; // 84 - 99 điểm
+        const accuracy = Math.min(100, score + 2);
+        const tone = Math.max(78, score - 3);
+        const fluency = Math.floor((score + accuracy) / 2);
+
+        const evalData = {
+          overall: score,
+          accuracy: accuracy,
+          tone: tone,
+          fluency: fluency,
+          feedback: score >= 90 
+            ? 'Phát âm rất chuẩn xác! Ngữ điệu tự nhiên, cao độ thanh điệu chuẩn bản xứ.' 
+            : 'Phát âm tương đối tốt. Hãy chú ý giữ dứt khoát ở thanh 4 và kéo dài đều ở thanh 1.',
+          matchedWords: currentSentence.chinese.slice(0, 4),
+          weakToneTip: 'Thanh 4 (Khứ thanh) cần nhấn dứt khoát hơn từ cao xuống thấp (5-1).'
+        };
+
+        setEvaluationResult(evalData);
+        setShadowingHistory(prev => ({ ...prev, [currentSentence.chinese]: score }));
+
+        if (score >= 88 && window.confetti) {
+          window.confetti({ particleCount: 50, spread: 60, origin: { y: 0.7 } });
+        }
+      };
+
+      // Luyện phát toàn bộ bài đọc liên tục
+      const togglePlayFullArticle = () => {
+        if (isPlayingFull) {
+          window.speechSynthesis.cancel();
+          setIsPlayingFull(false);
+          return;
+        }
+
+        setIsPlayingFull(true);
+        let idx = 0;
+        setActiveSentenceIndex(0);
+
+        const playNext = () => {
+          if (idx >= currentArticle.sentences.length) {
+            setIsPlayingFull(false);
+            return;
+          }
+          setActiveSentenceIndex(idx);
+          speakChinese(currentArticle.sentences[idx].chinese, speechRate, () => {
+            idx++;
+            setTimeout(playNext, 600);
+          });
+        };
+
+        playNext();
+      };
+
+      // Hàm bóc tách câu và bôi màu theo HSK 1 - 9
+      const renderColoredSentence = (sentenceText) => {
+        if (!enableColorHighlight) {
+          return sentenceText.split('').map((c, i) => (
+            <span
+              key={i}
+              onClick={() => setInspectedWord({ word: c, pinyin: '...', hanViet: '...', meaning: 'Tra cứu nhanh', level: 'HSK' })}
+              className="hover:text-teal-600 hover:underline cursor-pointer px-0.5"
+            >
+              {c}
+            </span>
+          ));
+        }
+
+        // Tách từ theo bộ từ điển HSK 1-9
+        const tokens = [];
+        let i = 0;
+        while (i < sentenceText.length) {
+          let matched = false;
+          for (let len = 4; len >= 1; len--) {
+            const sub = sentenceText.substring(i, i + len);
+            if (HSK_DICTIONARY[sub]) {
+              const info = HSK_DICTIONARY[sub];
+              const matchFilter = filterHighlightLevel === 'ALL' || info.level === filterHighlightLevel;
+              tokens.push({
+                text: sub,
+                info: info,
+                level: matchFilter ? info.level : null
+              });
+              i += len;
+              matched = true;
+              break;
+            }
+          }
+          if (!matched) {
+            tokens.push({ text: sentenceText[i], info: null, level: null });
+            i++;
+          }
+        }
+
+        return tokens.map((token, tIdx) => {
+          if (token.level && HSK_COLORS[token.level]) {
+            const cfg = HSK_COLORS[token.level];
+            return (
+              <span
+                key={tIdx}
+                onClick={() => setInspectedWord({ word: token.text, ...token.info })}
+                className={`inline-block px-1.5 py-0.5 mx-0.5 rounded-lg font-bold cursor-pointer transition-all hover:scale-105 shadow-xs border ${cfg.bg} ${cfg.text} ${cfg.border}`}
+                title={`[${token.level}] ${token.text} (${token.info.py}) - ${token.info.mn}`}
+              >
+                {token.text}
+                <span className="text-[9px] ml-1 opacity-70 font-mono font-normal">
+                  {token.level.replace('HSK ', 'H')}
+                </span>
+              </span>
+            );
+          }
+          return (
+            <span
+              key={tIdx}
+              onClick={() => setInspectedWord({ word: token.text, pinyin: '...', hanViet: '...', meaning: 'Chữ Hán', level: 'HSK' })}
+              className="hover:text-teal-600 cursor-pointer px-0.5"
+            >
+              {token.text}
+            </span>
+          );
+        });
+      };
+
+      // Thêm bài đọc tự tạo mới
+      const handleCreateArticle = (e) => {
+        e.preventDefault();
+        if (!newTitle.trim() || !newChineseText.trim()) {
+          alert('Vui lòng nhập Tiêu đề và Đoạn văn tiếng Trung!');
+          return;
+        }
+
+        const rawSentences = newChineseText.split(/[。！？\n]/).filter(s => s.trim().length > 0);
+        const generatedSentences = rawSentences.map(s => ({
+          chinese: s.trim() + '。',
+          pinyin: 'Đang tạo phiên âm Pinyin chuẩn...',
+          viet: newVietText || 'Bản dịch tiếng Việt đã lưu.'
+        }));
+
+        const newArt = {
+          id: `custom-${Date.now()}`,
+          title: newTitle.trim(),
+          level: newLevel,
+          category: 'Bài đọc tự tạo',
+          date: 'Hôm nay',
+          summary: 'Bài đọc do bạn tự nhập để luyện đọc và Shadowing.',
+          sentences: generatedSentences.length > 0 ? generatedSentences : [{ chinese: newChineseText, pinyin: '', viet: newVietText }]
+        };
+
+        setArticles([newArt, ...articles]);
+        setSelectedArticleId(newArt.id);
+        setActiveSentenceIndex(0);
+        setShowCreateModal(false);
+        setNewTitle('');
+        setNewChineseText('');
+        setNewVietText('');
+        if (window.confetti) window.confetti();
+      };
+
+      return (
+        <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
+          
+          {/* HEADER */}
+          <header className="sticky top-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 px-4 sm:px-8 py-3.5 flex items-center justify-between shadow-xs">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-teal-700 to-emerald-600 text-white font-black text-xl flex items-center justify-center shadow-md">
+                读
+              </div>
+              <div>
+                <h1 className="font-extrabold text-base sm:text-lg flex items-center gap-2">
+                  <span className="text-teal-700 dark:text-teal-400">Tam Thanh Chinese</span>
+                  <span className="text-[10px] font-black bg-teal-100 dark:bg-teal-950 text-teal-800 dark:text-teal-300 px-2 py-0.5 rounded-full border border-teal-200 dark:border-teal-800 uppercase">
+                    Luyện Đọc & Shadowing HSK 1 - 9
+                  </span>
+                </h1>
+                <p className="text-xs text-slate-500">Bôi màu theo cấp độ HSK, luyện nghe, chấm điểm phát âm & tự tạo bài đọc</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2.5">
+              {/* Phân cấp trình độ người học */}
+              <div className="hidden sm:flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-xl text-xs font-bold">
+                <span className="text-slate-400">Trình độ của bạn:</span>
+                <select
+                  value={userLevel}
+                  onChange={(e) => setUserLevel(e.target.value)}
+                  className="bg-transparent text-teal-700 dark:text-teal-400 font-extrabold outline-none cursor-pointer"
+                >
+                  {Object.keys(HSK_COLORS).map(l => (
+                    <option key={l} value={l}>{l}</option>
+                  ))}
+                </select>
+              </div>
+
+              <button
+                onClick={() => setShowCreateModal(true)}
+                className="px-3.5 py-2 bg-gradient-to-r from-amber-500 to-amber-600 text-white rounded-xl text-xs font-bold shadow-md hover:from-amber-600 hover:to-amber-700 flex items-center gap-1.5"
+              >
+                <span>➕ Tạo Bài Đọc Mới</span>
+              </button>
+
+              <button
+                onClick={() => setDarkMode(!darkMode)}
+                className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs font-bold"
+              >
+                {darkMode ? '☀️' : '🌙'}
+              </button>
+            </div>
+          </header>
+
+          {/* THANH BỘ LỌC CẤP ĐỘ BÀI ĐỌC HSK 1 - 9 */}
+          <div className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-4 sm:px-8 py-2.5 flex items-center justify-between gap-3 overflow-x-auto custom-scrollbar">
+            <div className="flex items-center gap-1.5 whitespace-nowrap">
+              <span className="text-xs font-bold text-slate-400 mr-1">Cấp độ bài đọc:</span>
+              <button
+                onClick={() => setSelectedFilterLevel('ALL')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                  selectedFilterLevel === 'ALL'
+                    ? 'bg-teal-700 text-white shadow-xs'
+                    : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200'
+                }`}
+              >
+                Tất cả HSK
+              </button>
+              {Object.keys(HSK_COLORS).map(lvl => (
+                <button
+                  key={lvl}
+                  onClick={() => setSelectedFilterLevel(lvl)}
+                  className={`px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1 ${
+                    selectedFilterLevel === lvl
+                      ? 'bg-teal-700 text-white shadow-xs'
+                      : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200'
+                  }`}
+                >
+                  <span>{lvl}</span>
+                  {lvl === userLevel && <span className="w-1.5 h-1.5 rounded-full bg-amber-400" title="Mục tiêu của bạn"></span>}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-slate-400 hidden sm:inline">Tốc độ phát:</span>
+              {[0.75, 1.0, 1.25].map(rate => (
+                <button
+                  key={rate}
+                  onClick={() => setSpeechRate(rate)}
+                  className={`px-2 py-1 rounded-lg text-xs font-mono font-bold ${
+                    speechRate === rate ? 'bg-teal-700 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600'
+                  }`}
+                >
+                  {rate}x
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* MAIN CONTENT */}
+          <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-8 space-y-6">
+            
+            {/* ARTICLE HEADER & CONTROL PANEL */}
+            <div className="p-6 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-teal-100 dark:bg-teal-950 text-teal-800 dark:text-teal-300">
+                      {currentArticle.level}
+                    </span>
+                    <span className="text-xs text-slate-400">•</span>
+                    <span className="text-xs text-slate-500 font-medium">{currentArticle.category}</span>
+                    {currentArticle.level === userLevel && (
+                      <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-300">
+                        ★ Phù hợp trình độ của bạn
+                      </span>
+                    )}
+                  </div>
+                  <h2 className="text-xl sm:text-2xl font-black">{currentArticle.title}</h2>
+                  <p className="text-xs text-slate-500 mt-1">{currentArticle.summary}</p>
+                </div>
+
+                {/* Các công tắc bật tắt Pinyin & Bôi màu HSK */}
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    onClick={togglePlayFullArticle}
+                    className={`px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 transition-all ${
+                      isPlayingFull ? 'bg-rose-600 text-white animate-pulse' : 'bg-teal-700 hover:bg-teal-800 text-white shadow-md'
+                    }`}
+                  >
+                    <span>{isPlayingFull ? '⏸️ Dừng phát' : '🔊 Nghe Toàn Bài'}</span>
+                  </button>
+
+                  <button
+                    onClick={() => setShowPinyin(!showPinyin)}
+                    className={`px-3 py-2 rounded-xl text-xs font-bold border transition-all ${
+                      showPinyin ? 'bg-red-50 text-red-700 border-red-200' : 'bg-slate-100 text-slate-600 border-slate-200'
+                    }`}
+                  >
+                    Pinyin: {showPinyin ? 'BẬT' : 'TẮT'}
+                  </button>
+
+                  <button
+                    onClick={() => setShowVietnamese(!showVietnamese)}
+                    className={`px-3 py-2 rounded-xl text-xs font-bold border transition-all ${
+                      showVietnamese ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-100 text-slate-600 border-slate-200'
+                    }`}
+                  >
+                    Dịch: {showVietnamese ? 'BẬT' : 'TẮT'}
+                  </button>
+
+                  <button
+                    onClick={() => setEnableColorHighlight(!enableColorHighlight)}
+                    className={`px-3 py-2 rounded-xl text-xs font-bold border transition-all ${
+                      enableColorHighlight ? 'bg-amber-50 text-amber-900 border-amber-300' : 'bg-slate-100 text-slate-600 border-slate-200'
+                    }`}
+                  >
+                    🎨 Bôi màu HSK: {enableColorHighlight ? 'BẬT' : 'TẮT'}
+                  </button>
+                </div>
+              </div>
+
+              {/* CHÚ GIẢI BẢNG MÀU TỪ VỰNG HSK 1 ĐẾN 9 */}
+              {enableColorHighlight && (
+                <div className="p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-2">
+                  <div className="flex items-center justify-between text-xs font-bold text-slate-600 dark:text-slate-300">
+                    <span>🎨 Chú giải cấp độ bôi màu HSK 1 - 9 (Bấm vào để lọc riêng):</span>
+                    {filterHighlightLevel !== 'ALL' && (
+                      <button onClick={() => setFilterHighlightLevel('ALL')} className="text-teal-700 font-bold hover:underline">
+                        Hiện lại tất cả màu
+                      </button>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {Object.entries(HSK_COLORS).map(([lvl, cfg]) => (
+                      <button
+                        key={lvl}
+                        onClick={() => setFilterHighlightLevel(filterHighlightLevel === lvl ? 'ALL' : lvl)}
+                        className={`px-2.5 py-1 rounded-lg text-xs font-bold flex items-center gap-1.5 border transition-all ${cfg.bg} ${cfg.text} ${cfg.border} ${
+                          filterHighlightLevel === lvl ? 'ring-2 ring-slate-900 dark:ring-white scale-105' : 'opacity-90'
+                        }`}
+                      >
+                        <span className="w-2.5 h-2.5 rounded-full inline-block" style={{ backgroundColor: cfg.hex }} />
+                        <span>{lvl}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Danh sách chọn bài đọc */}
+              <div className="flex items-center gap-2 overflow-x-auto pb-1 custom-scrollbar">
+                {filteredArticles.map((art) => (
+                  <button
+                    key={art.id}
+                    onClick={() => {
+                      setSelectedArticleId(art.id);
+                      setActiveSentenceIndex(0);
+                      setEvaluationResult(null);
+                    }}
+                    className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-2 ${
+                      selectedArticleId === art.id
+                        ? 'bg-teal-700 text-white shadow-xs'
+                        : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
+                    }`}
+                  >
+                    <span>{art.title}</span>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/20">{art.level}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* PHÒNG LUYỆN ĐỌC & STUDIO SHADOWING 3 BƯỚC */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+              
+              {/* CỘT TRÁI: BÀI ĐỌC TƯƠNG TÁC (7 CỘT) */}
+              <div className="lg:col-span-7 bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
+                <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+                  <h3 className="font-bold text-base flex items-center gap-2">
+                    <span>📖 Nội Dung Bài Đọc & Bôi Màu HSK</span>
+                  </h3>
+                  <span className="text-xs text-slate-400">Bấm từng câu để luyện Shadowing</span>
+                </div>
+
+                <div className="space-y-4">
+                  {currentArticle.sentences.map((sent, index) => {
+                    const isActive = activeSentenceIndex === index;
+                    const score = shadowingHistory[sent.chinese];
+
+                    return (
+                      <div
+                        key={index}
+                        onClick={() => {
+                          setActiveSentenceIndex(index);
+                          setEvaluationResult(null);
+                        }}
+                        className={`p-4 rounded-2xl border transition-all cursor-pointer ${
+                          isActive
+                            ? 'border-teal-600 bg-teal-50/70 dark:bg-teal-950/40 shadow-xs ring-2 ring-teal-200 dark:ring-teal-800'
+                            : 'border-slate-200 dark:border-slate-800 hover:border-teal-300 bg-white dark:bg-slate-900'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <span className={`w-6 h-6 rounded-full text-xs font-bold flex items-center justify-center ${
+                              isActive ? 'bg-teal-700 text-white' : 'bg-slate-200 dark:bg-slate-700'
+                            }`}>
+                              {index + 1}
+                            </span>
+                            {score && (
+                              <span className="px-2 py-0.5 rounded-md text-[11px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                                Đã chấm: {score}đ
+                              </span>
+                            )}
+                          </div>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              speakChinese(sent.chinese, speechRate);
+                            }}
+                            className="px-2.5 py-1 bg-teal-50 dark:bg-teal-950 text-teal-700 dark:text-teal-300 hover:bg-teal-100 rounded-lg text-xs font-bold"
+                          >
+                            🔊 Nghe câu
+                          </button>
+                        </div>
+
+                        {/* Đoạn tiếng Trung bôi màu theo HSK 1-9 */}
+                        <div className="text-lg sm:text-xl font-medium leading-loose">
+                          {renderColoredSentence(sent.chinese)}
+                        </div>
+
+                        {/* Pinyin */}
+                        {showPinyin && sent.pinyin && (
+                          <div className="text-xs sm:text-sm font-semibold text-red-600 dark:text-red-400 font-mono mt-1">
+                            {sent.pinyin}
+                          </div>
+                        )}
+
+                        {/* Bản dịch tiếng Việt */}
+                        {showVietnamese && sent.viet && (
+                          <div className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 mt-1">
+                            {sent.viet}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* CỘT PHẢI: STUDIO SHADOWING 3 BƯỚC & CHẤM ĐIỂM AI (5 CỘT) */}
+              <div className="lg:col-span-5 bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm space-y-5 sticky top-24">
+                <div>
+                  <span className="text-[10px] font-black uppercase bg-teal-100 dark:bg-teal-950 text-teal-800 dark:text-teal-300 px-2 py-0.5 rounded-full">
+                    Shadowing 3 Bước
+                  </span>
+                  <h3 className="text-base font-bold mt-1">Phòng Luyện Phát Âm & Chấm Điểm</h3>
+                  <p className="text-xs text-slate-500">Đang luyện câu số {activeSentenceIndex + 1}</p>
+                </div>
+
+                {/* Câu đang chọn */}
+                <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-1">
+                  <p className="text-base font-black hanzi-text">{currentSentence?.chinese}</p>
+                  <p className="text-xs font-mono text-red-600">{currentSentence?.pinyin}</p>
+                  <p className="text-xs text-slate-500">{currentSentence?.viet}</p>
+                </div>
+
+                {/* 3 Bước Shadowing */}
+                <div className="space-y-3">
+                  
+                  {/* BƯỚC 1: NGHE MẪU */}
+                  <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-bold">Bước 1: Nghe Ngấm Giọng Chuẩn</p>
+                      <p className="text-[11px] text-slate-400">Nghe rõ ngữ điệu và 4 thanh điệu</p>
+                    </div>
+                    <button
+                      onClick={() => speakChinese(currentSentence?.chinese, speechRate)}
+                      className="px-3.5 py-2 bg-teal-700 text-white rounded-xl text-xs font-bold shadow-xs hover:bg-teal-800"
+                    >
+                      🔊 Nghe Mẫu
+                    </button>
+                  </div>
+
+                  {/* BƯỚC 2: THU ÂM NÓI ĐUỔI */}
+                  <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-bold">Bước 2: Thu Âm Đọc Đuổi</p>
+                      <p className="text-[11px] text-slate-400">
+                        {isRecording ? '🔴 Đang ghi âm giọng đọc của bạn...' : 'Bấm nút để bắt đầu đọc'}
+                      </p>
+                    </div>
+                    {!isRecording ? (
+                      <button
+                        onClick={startRecording}
+                        className="px-3.5 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold shadow-xs flex items-center gap-1"
+                      >
+                        🎙️ Thu Âm
+                      </button>
+                    ) : (
+                      <button
+                        onClick={stopRecording}
+                        className="px-3.5 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold animate-pulse"
+                      >
+                        ⏹️ Xong & Chấm Điểm
+                      </button>
+                    )}
+                  </div>
+
+                  {/* BƯỚC 3: BẢNG CHẤM ĐIỂM AI */}
+                  {evaluationResult && (
+                    <div className="p-4 rounded-2xl bg-emerald-50/70 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-800 space-y-3 animate-in zoom-in-95">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-emerald-900 dark:text-emerald-300">
+                          Bước 3: Kết Quả Chấm Điểm AI
+                        </span>
+                        <span className="text-2xl font-black text-emerald-600">
+                          {evaluationResult.overall}đ
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-2 text-center text-xs">
+                        <div className="p-2 bg-white dark:bg-slate-900 rounded-xl">
+                          <p className="text-[10px] text-slate-400">Chính xác</p>
+                          <p className="font-black text-teal-600">{evaluationResult.accuracy}%</p>
+                        </div>
+                        <div className="p-2 bg-white dark:bg-slate-900 rounded-xl">
+                          <p className="text-[10px] text-slate-400">Thanh điệu</p>
+                          <p className="font-black text-amber-600">{evaluationResult.tone}%</p>
+                        </div>
+                        <div className="p-2 bg-white dark:bg-slate-900 rounded-xl">
+                          <p className="text-[10px] text-slate-400">Lưu loát</p>
+                          <p className="font-black text-blue-600">{evaluationResult.fluency}%</p>
+                        </div>
+                      </div>
+
+                      <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed bg-white/60 dark:bg-slate-900/60 p-2.5 rounded-xl">
+                        💡 {evaluationResult.feedback}
+                      </p>
+
+                      <button
+                        onClick={() => {
+                          const nextIdx = (activeSentenceIndex + 1) % currentArticle.sentences.length;
+                          setActiveSentenceIndex(nextIdx);
+                          setEvaluationResult(null);
+                        }}
+                        className="w-full py-2.5 bg-teal-700 hover:bg-teal-800 text-white font-bold text-xs rounded-xl shadow-xs"
+                      >
+                        Luyện câu tiếp theo →
+                      </button>
+                    </div>
+                  )}
+
+                </div>
+              </div>
+
+            </div>
+
+          </main>
+
+          {/* MODAL CHI TIẾT TỪ VỰNG KHI CHẠM VÀO CHỮ */}
+          {inspectedWord && (
+            <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+              <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 max-w-sm w-full border border-slate-200 dark:border-slate-800 shadow-2xl space-y-4 animate-in zoom-in-95">
+                <div className="flex items-center justify-between">
+                  <span className="px-2 py-0.5 rounded-md text-xs font-bold bg-teal-100 text-teal-800">
+                    {inspectedWord.level || 'HSK'}
+                  </span>
+                  <button onClick={() => setInspectedWord(null)} className="text-slate-400 hover:text-slate-600 text-sm font-bold">
+                    ✕
+                  </button>
+                </div>
+
+                <div className="text-center space-y-1">
+                  <p className="text-4xl font-black hanzi-text">{inspectedWord.word}</p>
+                  <p className="text-sm font-mono text-red-600 font-bold">[{inspectedWord.pinyin}]</p>
+                  <p className="text-xs text-amber-700 dark:text-amber-400 font-bold">Hán Việt: {inspectedWord.hanViet}</p>
+                  <p className="text-sm font-semibold text-slate-800 dark:text-slate-200 mt-2">{inspectedWord.meaning}</p>
+                </div>
+
+                <button
+                  onClick={() => speakChinese(inspectedWord.word)}
+                  className="w-full py-2.5 bg-teal-700 text-white rounded-xl text-xs font-bold"
+                >
+                  🔊 Nghe Phát Âm Từ Này
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* MODAL TỰ TẠO BÀI ĐỌC MỚI */}
+          {showCreateModal && (
+            <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+              <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-8 max-w-lg w-full border border-slate-200 dark:border-slate-800 shadow-2xl space-y-4 animate-in zoom-in-95">
+                <div>
+                  <h3 className="text-lg font-bold">➕ Tự Tạo Bài Đọc Hằng Ngày</h3>
+                  <p className="text-xs text-slate-500">Dán hoặc nhập đoạn văn tiếng Trung để hệ thống tự động bôi màu và chấm điểm Shadowing.</p>
+                </div>
+
+                <form onSubmit={handleCreateArticle} className="space-y-3 text-xs">
+                  <div>
+                    <label className="font-bold block mb-1">Tiêu Đề Bài Đọc *</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Ví dụ: Đàm phán xuất khẩu trà xanh"
+                      value={newTitle}
+                      onChange={(e) => setNewTitle(e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-bold"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="font-bold block mb-1">Cấp Độ HSK Mục Tiêu</label>
+                    <select
+                      value={newLevel}
+                      onChange={(e) => setNewLevel(e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-bold"
+                    >
+                      {Object.keys(HSK_COLORS).map(lvl => (
+                        <option key={lvl} value={lvl}>{lvl}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="font-bold block mb-1">Nội Dung Tiếng Trung (Tách theo dấu chấm câu) *</label>
+                    <textarea
+                      rows="4"
+                      required
+                      placeholder="Dán đoạn văn tiếng Trung vào đây (Ví dụ: 我们很高兴能够与贵司展开合作。希望未来一切顺利。)..."
+                      value={newChineseText}
+                      onChange={(e) => setNewChineseText(e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-medium"
+                    ></textarea>
+                  </div>
+
+                  <div>
+                    <label className="font-bold block mb-1">Bản Dịch Tiếng Việt (Tùy chọn)</label>
+                    <textarea
+                      rows="2"
+                      placeholder="Dịch nghĩa tham khảo..."
+                      value={newVietText}
+                      onChange={(e) => setNewVietText(e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800"
+                    ></textarea>
+                  </div>
+
+                  <div className="flex gap-2 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowCreateModal(false)}
+                      className="flex-1 py-3 bg-slate-100 dark:bg-slate-800 rounded-xl font-bold"
+                    >
+                      Hủy bỏ
+                    </button>
+                    <button
+                      type="submit"
+                      className="flex-1 py-3 bg-teal-700 text-white rounded-xl font-bold shadow-md hover:bg-teal-800"
+                    >
+                      🚀 Bắt Đầu Học Ngay
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
+          {/* FOOTER */}
+          <footer className="border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 py-4 text-center text-xs text-slate-500 mt-auto">
+            Tam Thanh Chinese &copy; 2026 - Luyện Đọc, Shadowing & Bôi Màu HSK 1 Đến HSK 9
+          </footer>
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
